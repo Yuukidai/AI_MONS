@@ -229,9 +229,8 @@ void Enemy::Chase()
 
 	Point playerPos = FindGameObject<Player>()->GetPlayerPos();
 
-	//========================================
+	
 	// プレイヤーとの距離をチェック
-	//========================================
 	int dx = abs(playerPos.x - pos_.x);
 	int dy = abs(playerPos.y - pos_.y);
 
@@ -247,9 +246,8 @@ void Enemy::Chase()
 		return;
 	}
 
-	//========================================
+	
 	// 攻撃範囲ならATTACK
-	//========================================
 	if (IsPlayerInAttackRange())
 	{
 		state_ = ATTACK;
@@ -257,9 +255,8 @@ void Enemy::Chase()
 		return;
 	}
 
-	//========================================
+	
 	// プレイヤーの方向を向く
-	//========================================
 	if (playerPos.x > pos_.x)
 	{
 		dir_ = RIGHT;
@@ -277,9 +274,8 @@ void Enemy::Chase()
 		dir_ = UP;
 	}
 
-	//========================================
+	
 	// 移動
-	//========================================
 	Point newPos = pos_;
 
 	switch (dir_)
