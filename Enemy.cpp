@@ -68,32 +68,77 @@ void Enemy::Draw()
 	int nowFrame = animFrame[frame];
 
 	Rect iRect[4] = {
-		{  nowFrame * ENEMY_SIZE, 3 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE},
-		{  nowFrame * ENEMY_SIZE, 0 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE},
-		{  nowFrame * ENEMY_SIZE, 1 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE},
-		{  nowFrame * ENEMY_SIZE, 2 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE}
+		{ nowFrame * ENEMY_SIZE, 3 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE },
+		{ nowFrame * ENEMY_SIZE, 0 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE },
+		{ nowFrame * ENEMY_SIZE, 1 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE },
+		{ nowFrame * ENEMY_SIZE, 2 * ENEMY_SIZE, ENEMY_SIZE, ENEMY_SIZE }
 	};
-	DrawBox(pos_.x, pos_.y, pos_.x + ENEMY_DRAW_SIZE, pos_.y + ENEMY_DRAW_SIZE,
-		GetColor(255, 255, 0), FALSE,2);
-	//パンダの攻撃の可視化
+
+	
+
+	// 索敵範囲の可視化
+	const int VIEW_DISTANCE = 5 * CHA_SIZE;
+
+	int startX = pos_.x;
+	int startY = pos_.y;
+
+	int endX = pos_.x;
+	int endY = pos_.y;
+
+	switch (dir_)
+	{
+	case UP:
+		startY = pos_.y - VIEW_DISTANCE;
+		endY = pos_.y;
+		break;
+
+	case DOWN:
+		startY = pos_.y;
+		endY = pos_.y + VIEW_DISTANCE;
+		break;
+
+	case LEFT:
+		startX = pos_.x - VIEW_DISTANCE;
+		endX = pos_.x;
+		break;
+
+	case RIGHT:
+		startX = pos_.x;
+		endX = pos_.x + VIEW_DISTANCE;
+		break;
+	}
+
+	// 索敵範囲を黄色で表示
+	DrawBox(startX,startY,endX + ENEMY_DRAW_SIZE,endY + ENEMY_DRAW_SIZE,GetColor(255, 255, 0),FALSE,2);
+
+	
+	// 敵本体
+	
+	DrawBox(pos_.x,pos_.y,
+				pos_.x + ENEMY_DRAW_SIZE,pos_.y + ENEMY_DRAW_SIZE,
+				GetColor(255, 255, 0),FALSE,2);	
+	// パンダの攻撃範囲
 	if (state_ == ATTACK)
 	{
-		DrawBox(
-			pos_.x - CHA_SIZE * 2,pos_.y - CHA_SIZE * 2,
+		DrawBox(pos_.x - CHA_SIZE * 2,pos_.y - CHA_SIZE * 2,
 			pos_.x + ENEMY_DRAW_SIZE + CHA_SIZE * 2,pos_.y + ENEMY_DRAW_SIZE + CHA_SIZE * 2,
 			GetColor(255, 0, 0),FALSE,3);
 	}
-	DrawRectExtendGraph(pos_.x, pos_.y,pos_.x + ENEMY_DRAW_SIZE, pos_.y + ENEMY_DRAW_SIZE,
-		               iRect[dir_].x, iRect[dir_].y, iRect[dir_].w, iRect[dir_].h, hImage_, TRUE);
-	if (animTimer < 0) {
+
+	DrawRectExtendGraph(pos_.x,pos_.y,pos_.x + ENEMY_DRAW_SIZE,pos_.y + ENEMY_DRAW_SIZE,
+		iRect[dir_].x,iRect[dir_].y,iRect[dir_].w,iRect[dir_].h,hImage_,TRUE
+	);
+
+	if (animTimer < 0)
+	{
 		frame = (++frame) % 4;
 		animTimer = ANIM_INTERVAL + animTimer;
 	}
-	animTimer = animTimer - Time::DeltaTime();
-	//ステータス確認..0,パトロール1,チェイス2,攻撃3サーチ	
-	DrawFormatString(20, 20,GetColor(255, 255, 255),"Enemy State : %d",state_);
 
-	
+	animTimer = animTimer - Time::DeltaTime();
+
+	// ステータス確認
+	DrawFormatString(20,20,GetColor(255, 255, 255),"Enemy State : %d",state_);
 }
 
 void Enemy::Patrol()
@@ -184,7 +229,27 @@ void Enemy::Chase()
 
 	Point playerPos = FindGameObject<Player>()->GetPlayerPos();
 
+	//========================================
+	// プレイヤーとの距離をチェック
+	//========================================
+	int dx = abs(playerPos.x - pos_.x);
+	int dy = abs(playerPos.y - pos_.y);
+
+	const int LOSE_DISTANCE = 10 * CHA_SIZE;
+
+	// 一定距離以上離れたら見失う
+	if (dx + dy > LOSE_DISTANCE)
+	{
+		state_ = SEARCH;
+		searchTimer_ = 0.0f;
+		searchMoveTimer_ = 0.5f;
+
+		return;
+	}
+
+	//========================================
 	// 攻撃範囲ならATTACK
+	//========================================
 	if (IsPlayerInAttackRange())
 	{
 		state_ = ATTACK;
@@ -192,7 +257,9 @@ void Enemy::Chase()
 		return;
 	}
 
+	//========================================
 	// プレイヤーの方向を向く
+	//========================================
 	if (playerPos.x > pos_.x)
 	{
 		dir_ = RIGHT;
@@ -210,6 +277,9 @@ void Enemy::Chase()
 		dir_ = UP;
 	}
 
+	//========================================
+	// 移動
+	//========================================
 	Point newPos = pos_;
 
 	switch (dir_)
@@ -384,32 +454,42 @@ bool Enemy::IsPlayerInSight()
 	int dx = playerPos.x - pos_.x;
 	int dy = playerPos.y - pos_.y;
 
-	const int VIEW_DISTANCE = 5 * CHA_SIZE;
+	// 索敵距離
+	const int VIEW_DISTANCE = 7 * CHA_SIZE;
 
-	// 距離が遠すぎる
+	// マンハッタン距離
 	if (abs(dx) + abs(dy) > VIEW_DISTANCE)
 	{
 		return false;
 	}
 
-	// 向いている方向にプレイヤーがいるか
+	// 敵とプレイヤーが同じ位置
+	if (dx == 0 && dy == 0)
+	{
+		return false;
+	}
+
+	
+	// 向いている方向によって扇形の判定
 	switch (dir_)
 	{
 	case UP:
-		return dx == 0 && dy < 0;
+		// 上方向が一番強く、
+		// 横方向に行くほど範囲外
+		return dy < 0 && abs(dx) <= -dy;
 
 	case DOWN:
-		return dx == 0 && dy > 0;
+		return dy > 0 && abs(dx) <= dy;
 
 	case LEFT:
-		return dy == 0 && dx < 0;
-			
-	case RIGHT:
-		return dy == 0 && dx > 0;
-	}
+		return dx < 0 && abs(dy) <= -dx;
 
+	case RIGHT:
+		return dx > 0 && abs(dy) <= dx;
+	}
 	return false;
 }
+
 
 bool Enemy::IsPlayerInAttackRange()
 {
